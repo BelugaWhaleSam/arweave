@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from "react";
 import { WebBundlr } from "@bundlr-network/client";
 import { providers, utils } from "ethers";
 import BigNumber from "bignumber.js";
-import "./App.css";
 
 /* ******************************** Axios ******************************** */
 
@@ -14,26 +13,26 @@ import FormData from "form-data";
 var data = new FormData();
 
 function App() {
+  /* ******************************** useStates ******************************** */
 
- /* ******************************** useStates ******************************** */
-  
   const [bundlrInstance, setBundlrInstance] = useState();
   const [balance, setBalance] = useState();
   const bundlrRef = useRef();
   const [file, setFile] = useState();
   const [image, setImage] = useState();
   const [URI, setURI] = useState();
-  const [amount, setAmount] = useState();
+  // const [amount, setAmount] = useState();
   const [header, setHeader] = useState();
 
   /* ******************************** Initialise function ******************************** */
 
+  let bundlr;
   async function initialiseBundlr() {
     await window.ethereum.enable();
     const provider = new providers.Web3Provider(window.ethereum);
     await provider._ready();
 
-    const bundlr = new WebBundlr(
+    bundlr = new WebBundlr(
       "https://devnet.bundlr.network",
       "matic",
       provider,
@@ -48,14 +47,12 @@ function App() {
     fetchBalance();
   }
 
-
-/* ******************************** uploadVideo Function ******************************** */
-  let tx;
+  /* ******************************** uploadVideo Function and set Axios ******************************** */
+  
   async function uploadFile() {
-    tx = await bundlrInstance.uploader.upload(
-      [file],
-      [{ name: "Content-Type", value: "video/mp4" }]
-    );
+    const tx = await bundlrInstance.uploader.upload(file, [
+      { name: "Content-Type", value: "video/webm" },
+    ]);
     console.log("tx: ", tx.data.id);
     setURI(`http://arweave.net/${tx.data.id}`);
     const URL = `http://arweave.net/${tx.data.id}`;
@@ -82,10 +79,10 @@ function App() {
       });
   }
 
-/* ******************************** fundWallet Function ******************************** */
+  /* ******************************** fundWallet Function ******************************** */
 
   async function fundWallet() {
-    console.log(balance)
+    console.log(balance);
     if (balance > 0.2) return;
     // If balance less than 0.2 then add 0.01 funds to the wallet
     const amountParsed = parseInput(0.01);
@@ -94,7 +91,7 @@ function App() {
     fetchBalance();
   }
 
-/* ******************************** parseInput function for fundWallet ******************************** */
+  /* ******************************** parseInput function for fundWallet ******************************** */
 
   function parseInput(input) {
     const conv = new BigNumber(input).multipliedBy(
@@ -108,7 +105,7 @@ function App() {
     }
   }
 
-/* ******************************** fetchBalance function for fundWallet and called in initialiseBundlr ******************************** */
+  /* ******************************** fetchBalance function for fundWallet and called in initialiseBundlr ******************************** */
 
   async function fetchBalance() {
     const bal = await bundlrRef.current.getLoadedBalance();
@@ -118,22 +115,39 @@ function App() {
 
   /* ******************************** call the fundWallet and uploadVideo Function ******************************** */
   async function initialize() {
-    
     await fundWallet();
     await uploadFile();
   }
 
-/* ******************************** useEffect for initialisation of bundlr wallet ******************************** */
+  /* ******************************** onFileChange function for file upload ******************************** */
+
+  function onFileChange(e) {
+    const file = e.target.files[0]
+    if (file) {
+      const image = URL.createObjectURL(file)
+      setImage(image)
+      let reader = new FileReader()
+      reader.onload = function () {
+        if (reader.result) {
+          setFile(Buffer.from(reader.result))
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    }
+  }
+
+  /* ******************************** useEffect for initialisation of bundlr wallet ******************************** */
 
   useEffect(() => {
     initialiseBundlr();
   }, []);
 
-/* ******************************** Render ******************************** */
+  /* ******************************** Render ******************************** */
 
   return (
     <div>
-      <input type="file" onChange={(e) => setFile(e.target.files?.item(0))} />
+      <input type="file" onChange={onFileChange} />
+      {/* <input type="file" onChange={(e) => setFile(e.target.files?.item(0))} /> */}
       <button onClick={initialize}>sab karega ye button</button>
       <h3>Balance: {balance}</h3>
       {URI && <a href={URI}>{URI}</a>}
