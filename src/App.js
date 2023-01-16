@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { WebBundlr } from "@bundlr-network/client";
 import { providers, utils } from "ethers";
 import BigNumber from "bignumber.js";
+import fileReaderStream from "filereader-stream";
 
 /* ******************************** Axios ******************************** */
 
@@ -23,23 +24,19 @@ function App() {
   const [URI, setURI] = useState();
   // const [amount, setAmount] = useState();
   const [header, setHeader] = useState();
+  const [fileSize, setFileSize] = useState();
+  const totalChunks = useRef(0);
 
   /* ******************************** Initialise function ******************************** */
 
-  let bundlr;
   async function initialiseBundlr() {
     await window.ethereum.enable();
     const provider = new providers.Web3Provider(window.ethereum);
     await provider._ready();
 
-    bundlr = new WebBundlr(
-      "https://devnet.bundlr.network",
-      "matic",
-      provider,
-      {
-        providerUrl: "https://rpc-mumbai.matic.today",
-      }
-    );
+    const bundlr = new WebBundlr("https://devnet.bundlr.network", "matic", provider, {
+      providerUrl: "https://rpc-mumbai.matic.today",
+    });
     await bundlr.ready();
 
     setBundlrInstance(bundlr);
@@ -48,9 +45,22 @@ function App() {
   }
 
   /* ******************************** uploadVideo Function and set Axios ******************************** */
-  
+
   async function uploadFile() {
-    const tx = await bundlrInstance.uploader.upload(file, [
+    console.log("bundlr: ", bundlrInstance)
+    const uploader = bundlrInstance.uploader.chunkedUploader;;
+    console.log("uploader: ", uploader)
+    // Change the batch size to 1 to make testing easier (default is 5)
+    uploader.setBatchSize(10);
+    // Change the chunk size to something small to make testing easier (default is 25MB)
+    const chunkSize = 2000000;
+    uploader.setChunkSize(chunkSize);
+    if (fileSize < chunkSize) totalChunks.current = 1;
+    else {
+      totalChunks.current = Math.floor(fileSize / chunkSize);
+    }
+    
+    const tx = await uploader.uploadData(file, [
       { name: "Content-Type", value: "video/webm" },
     ]);
     console.log("tx: ", tx.data.id);
@@ -85,7 +95,7 @@ function App() {
     console.log(balance);
     if (balance > 0.2) return;
     // If balance less than 0.2 then add 0.01 funds to the wallet
-    const amountParsed = parseInput(0.01);
+    const amountParsed = parseInput(1);
     let response = await bundlrInstance.fund(amountParsed);
     console.log("Wallet funded: ", response);
     fetchBalance();
@@ -122,18 +132,10 @@ function App() {
   /* ******************************** onFileChange function for file upload ******************************** */
 
   function onFileChange(e) {
-    const file = e.target.files[0]
-    if (file) {
-      const image = URL.createObjectURL(file)
-      setImage(image)
-      let reader = new FileReader()
-      reader.onload = function () {
-        if (reader.result) {
-          setFile(Buffer.from(reader.result))
-        }
-      }
-      reader.readAsArrayBuffer(file)
-    }
+    const file = e.target.files[0];
+    setFileSize(file.size);
+    const dataStream = fileReaderStream(file);
+    setFile(dataStream);
   }
 
   /* ******************************** useEffect for initialisation of bundlr wallet ******************************** */
