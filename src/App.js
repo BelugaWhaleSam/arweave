@@ -132,10 +132,28 @@ function App() {
   /* ******************************** onFileChange function for file upload ******************************** */
 
   function onFileChange(e) {
-    const file = e.target.files[0];
-    setFileSize(file.size);
-    const dataStream = fileReaderStream(file);
-    setFile(dataStream);
+    // const file = e.target.files[0];
+    // setFileSize(file.size);
+    // const dataStream = fileReaderStream(file);
+    // setFile(dataStream);
+
+    fetch("https://api.video.wiki/media/temporary/2023/01/02/7f3fe67f-73ea-48ba-a331-a6430ad5352b.webm").then(async (response) => {
+      const contentType = response.headers.get("content-type");
+      const blob = await response.blob();
+      const file = new File([blob], "PREVIEW.webm", { contentType });
+      setFileSize(file.size);
+      const dataStream = fileReaderStream(file);
+      setFile(dataStream);
+      console.log(file);
+      // const imgCID = await client.put([file], { name: file.name });
+      // console.log(makeGatewayURLImage(imgCID, file.name));
+      // const ipfsurl = makeGatewayURLImage(imgCID, file.name);
+      // // setTimeout(() => {
+      // navigate(`/player?url=${ipfsurl}`, { replace: true });
+      // }, 5000);
+    });
+  
+
   }
 
   /* ******************************** useEffect for initialisation of bundlr wallet ******************************** */
